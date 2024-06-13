@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -12,9 +13,9 @@ using System.Windows.Forms;
 
 namespace FileAttributes
 {
-    public partial class Form1 : Form
+    public partial class FormAttReader : Form
     {
-        public Form1()
+        public FormAttReader()
         {
             InitializeComponent();
         }
@@ -37,30 +38,39 @@ namespace FileAttributes
             var sb = new StringBuilder();
             foreach (var imagePath in files)
             {
-                var line = $"{new FileInfo(imagePath).Name} - ";
+                var line = $"{new FileInfo(imagePath).Name}     ";
                 using (Image image = Image.FromFile(imagePath))
                 {
                     double? latitude = null;
                     double? longitude = null;
                     double? altitude = null;
+                    DateTime? dateTime = null;
 
                     foreach (PropertyItem propertyItem in image.PropertyItems)
                     {
                         if (propertyItem.Id == 0x0001) // GPSLatitude
                         {
                             latitude = DecodeGps(image.GetPropertyItem(0x0002), propertyItem.Value[0] == 'S');
-                            line += $"{latitude}; ";
+                            line += $"{latitude};";
                         }
                         if (propertyItem.Id == 0x0003) // GPSLongitudeRef
                         {
                             longitude = DecodeGps(image.GetPropertyItem(0x0004), propertyItem.Value[0] == 'W');
-                            line += $"{longitude}; ";
+                            line += $"{longitude};  ";
                         }
                         if (propertyItem.Id == 0x0006) // GPSAltitude
                         {
                             altitude = DecodeAltitude(propertyItem);
-                            line += $"{altitude}";
+                            line += $"{altitude}    ";
                         }
+                        
+                    }
+
+                    PropertyItem date = image.PropertyItems.FirstOrDefault(x => x.Id == 0x9003);
+                    if (date != null) // DateTimeOriginal
+                    {
+                        dateTime = DecodeDateTime(date);
+                        line += $"{dateTime}";
                     }
                 }
                 sb.AppendLine(line);
@@ -107,6 +117,18 @@ namespace FileAttributes
             }
 
             return altitude;
+        }
+
+        private static DateTime? DecodeDateTime(PropertyItem propertyItem)
+        {
+            // DateTime is stored as a string in the format "yyyy:MM:dd HH:mm:ss\0"
+            string dateString = System.Text.Encoding.ASCII.GetString(propertyItem.Value).Trim('\0');
+
+            if (DateTime.TryParseExact(dateString, "yyyy:MM:dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime dateTime))
+            {
+                return dateTime;
+            }
+            return null;
         }
     }
 }

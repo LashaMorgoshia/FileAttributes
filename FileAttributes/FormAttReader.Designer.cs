@@ -1,6 +1,6 @@
 ﻿namespace FileAttributes
 {
-    partial class Form1
+    partial class FormAttReader
     {
         /// <summary>
         /// Required designer variable.
